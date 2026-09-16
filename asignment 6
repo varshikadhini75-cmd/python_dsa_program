@@ -1,0 +1,131 @@
+import sys
+
+class FoodItem:
+    def __init__(self, item_id, name, price, category):
+        self.item_id = item_id
+        self.name = name
+        self.price = price
+        self.category = category
+
+class FoodDeliverySystem:
+    def __init__(self):
+        # Sample menu database
+        self.menu = {
+            1: FoodItem(1, "Cheeseburger", 8.99, "Burgers"),
+            2: FoodItem(2, "French Fries", 3.49, "Sides"),
+            3: FoodItem(3, "Pepperoni Pizza", 12.99, "Pizza"),
+            4: FoodItem(4, "Caesar Salad", 7.49, "Salads"),
+            5: FoodItem(5, "Chocolate Milkshake", 4.99, "Drinks"),
+            6: FoodItem(6, "Coca-Cola", 1.99, "Drinks")
+        }
+        self.cart = {} # Format: {item_id: quantity}
+        self.delivery_fee = 3.99
+        self.tax_rate = 0.08  # 8% tax
+
+    def display_menu(self):
+        print("\n" + "="*40)
+        print("          ✨ TODAY'S MENU ✨          ")
+        print("="*40)
+        current_category = ""
+        for item in self.menu.values():
+            if item.category != current_category:
+                current_category = item.category
+                print(f"\n--- {current_category.upper()} ---")
+            print(f"[{item.item_id}] {item.name:<22} ${item.price:.2f}")
+        print("="*40)
+
+    def add_to_cart(self):
+        self.display_menu()
+        try:
+            item_id = int(input("\nEnter the ID of the item you want to add: "))
+            if item_id not in self.menu:
+                print("❌ Invalid item ID. Please try again.")
+                return
+
+            quantity = int(input(f"How many '{self.menu[item_id].name}' would you like? "))
+            if quantity <= 0:
+                print("❌ Quantity must be greater than zero.")
+                return
+
+            if item_id in self.cart:
+                self.cart[item_id] += quantity
+            else:
+                self.cart[item_id] = quantity
+            
+            print(f"✅ Added {quantity}x {self.menu[item_id].name} to your cart.")
+        except ValueError:
+            print("❌ Invalid input. Please enter numbers only.")
+
+    def view_cart(self):
+        if not self.cart:
+            print("\n🛒 Your cart is empty!")
+            return False
+
+        print("\n" + "="*40)
+        print("          🛒 YOUR CART 🛒          ")
+        print("="*40)
+        subtotal = 0
+        for item_id, qty in self.cart.items():
+            item = self.menu[item_id]
+            item_total = item.price * qty
+            subtotal += item_total
+            print(f"{item.name:<20} x{qty:<3} ${item_total:.2f}")
+        
+        tax = subtotal * self.tax_rate
+        total = subtotal + tax + self.delivery_fee
+
+        print("-" * 40)
+        print(f"{'Subtotal:':<25} ${subtotal:.2f}")
+        print(f"{'Tax (8%):':<25} ${tax:.2f}")
+        print(f"{'Delivery Fee:':<25} ${self.delivery_fee:.2f}")
+        print("-" * 40)
+        print(f"{'TOTAL BILL:':<25} ${total:.2f}")
+        print("="*40)
+        return True
+
+    def checkout(self):
+        if not self.view_cart():
+            return
+
+        confirm = input("\nProceed to checkout? (yes/no): ").strip().lower()
+        if confirm in ['yes', 'y']:
+            address = input("Enter your delivery address: ").strip()
+            if not address:
+                print("❌ Address cannot be empty. Checkout canceled.")
+                return
+            
+            print("\n⏳ Processing payment...")
+            print(f"🎉 Success! Your food is preparing and will be delivered to: '{address}' soon!")
+            self.cart.clear() # Clear cart after successful order
+        else:
+            print("🛍️ Checkout canceled. You can keep browsing!")
+
+    def run(self):
+        while True:
+            print("\n--- 🍔 Python Online Food Delivery 🚀 ---")
+            print("1. View Menu")
+            print("2. Add Item to Cart")
+            print("3. View Cart & Receipt")
+            print("4. Checkout & Place Order")
+            print("5. Exit")
+            
+            choice = input("Please select an option (1-5): ").strip()
+            
+            if choice == '1':
+                self.display_menu()
+            elif choice == '2':
+                self.add_to_cart()
+            elif choice == '3':
+                self.view_cart()
+            elif choice == '4':
+                self.checkout()
+            elif choice == '5':
+                print("\nThank you for visiting! Goodbye! 👋")
+                sys.exit()
+            else:
+                print("❌ Invalid selection. Please enter a number between 1 and 5.")
+
+if __name__ == "__main__":
+    # Initialize and run the system
+    system = FoodDeliverySystem()
+    system.run()
