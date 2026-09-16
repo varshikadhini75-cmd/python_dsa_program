@@ -1,0 +1,13 @@
+import random
+
+user_guess = int(input("Enter your guess (1 to 10): "))
+
+computer_choice = random.randint(1, 10)
+
+print(f"Computer chose: {computer_choice}")
+
+if user_guess == computer_choice:
+  print("Right! Your guess matched the computer's number.")
+else:
+  print("No match! Better luck next time.")
+
