@@ -1,0 +1,194 @@
+import tkinter as tk
+from tkinter import messagebox, ttk
+import random
+import time
+
+class SlidingPuzzleGame:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Sliding Tile Puzzle Game")
+        self.root.geometry("450x580")
+        self.root.resizable(False, False)
+        
+        # Game State
+        self.grid_size = 4  # Default 4x4
+        self.tiles = []
+        self.blank_pos = (0, 0)
+        self.moves = 0
+        self.start_time = None
+        self.timer_running = False
+        self.elapsed_time = 0
+        
+        # Styling Colors
+        self.bg_color = "#1e1e2e"
+        self.card_bg = "#252538"
+        self.tile_bg = "#89b4fa"
+        self.tile_text = "#11111b"
+        self.blank_bg = "#313244"
+        self.accent_color = "#a6e3a1"
+        self.header_text = "#cdd6f4"
+        
+        self.root.configure(bg=self.bg_color)
+        self.create_widgets()
+        self.start_new_game()
+        
+        # Key bindings for Arrow Keys and WASD
+        for key, direction in [("<Up>", "Up"), ("<Down>", "Down"), ("<Left>", "Left"), ("<Right>", "Right"),
+                               ("w", "Up"), ("s", "Down"), ("a", "Left"), ("d", "Right")]:
+            self.root.bind(key, lambda event, d=direction: self.move_by_key(d))
+
+    def create_widgets(self):
+        header_frame = tk.Frame(self.root, bg=self.bg_color)
+        header_frame.pack(fill="x", padx=20, pady=15)
+        
+        tk.Label(header_frame, text="SLIDING PUZZLE", font=("Helvetica", 20, "bold"), 
+                 fg=self.header_text, bg=self.bg_color).pack()
+
+        info_frame = tk.Frame(self.root, bg=self.card_bg, highlightbackground="#45475a", highlightthickness=1)
+        info_frame.pack(fill="x", padx=20, pady=5)
+        
+        self.moves_label = tk.Label(info_frame, text="Moves: 0", font=("Helvetica", 12, "bold"), 
+                                    fg=self.header_text, bg=self.card_bg)
+        self.moves_label.grid(row=0, column=0, padx=15, pady=10)
+        
+        self.timer_label = tk.Label(info_frame, text="Time: 00:00", font=("Helvetica", 12, "bold"), 
+                                    fg=self.header_text, bg=self.card_bg)
+        self.timer_label.grid(row=0, column=1, padx=15, pady=10)
+        
+        tk.Label(info_frame, text="Size:", font=("Helvetica", 10), fg="#a6adc8", bg=self.card_bg).grid(row=0, column=2, padx=(10, 2), pady=10)
+        self.size_var = tk.IntVar(value=4)
+        size_menu = ttk.Combobox(info_frame, textvariable=self.size_var, values=[3, 4, 5], width=3, state="readonly")
+        size_menu.grid(row=0, column=3, padx=(0, 15), pady=10)
+        size_menu.bind("<<ComboboxSelected>>", lambda e: self.change_grid_size())
+
+        self.grid_container = tk.Frame(self.root, bg=self.card_bg, highlightbackground="#45475a", highlightthickness=2)
+        self.grid_container.pack(padx=20, pady=15, fill="both", expand=True)
+
+        btn_frame = tk.Frame(self.root, bg=self.bg_color)
+        btn_frame.pack(fill="x", padx=20, pady=10)
+
+        tk.Button(btn_frame, text="New Game", font=("Helvetica", 11, "bold"), bg=self.accent_color, fg="#11111b",
+                  relief="flat", cursor="hand2", command=self.start_new_game, padx=15, pady=5).pack(side="left", padx=5)
+
+    def change_grid_size(self):
+        self.grid_size = self.size_var.get()
+        self.start_new_game()
+
+    def start_new_game(self):
+        self.moves = 0
+        self.moves_label.config(text="Moves: 0")
+        self.timer_running = False
+        self.elapsed_time = 0
+        self.timer_label.config(text="Time: 00:00")
+        
+        for child in self.grid_container.winfo_children():
+            child.destroy()
+            
+        n = self.grid_size
+        total = n * n
+        current_board = list(range(1, total)) + [0]
+        empty_index = total - 1
+        
+        # Shuffle board guaranteed to be solvable
+        last_move = None
+        for _ in range(n * n * 20):
+            r, c = empty_index // n, empty_index % n
+            neighbors = []
+            if r > 0 and last_move != "DOWN": neighbors.append((empty_index - n, "UP"))
+            if r < n - 1 and last_move != "UP": neighbors.append((empty_index + n, "DOWN"))
+            if c > 0 and last_move != "RIGHT": neighbors.append((empty_index - 1, "LEFT"))
+            if c < n - 1 and last_move != "LEFT": neighbors.append((empty_index + 1, "RIGHT"))
+            
+            target_idx, move_dir = random.choice(neighbors)
+            current_board[empty_index], current_board[target_idx] = current_board[target_idx], current_board[empty_index]
+            empty_index = target_idx
+            last_move = move_dir
+            
+        self.tile_buttons = {}
+        self.board_state = []
+        idx = 0
+        for r in range(n):
+            row = []
+            for c in range(n):
+                val = current_board[idx]
+                row.append(val)
+                if val == 0:
+                    self.blank_pos = (r, c)
+                    lbl = tk.Label(self.grid_container, text="", bg=self.blank_bg, relief="sunken", bd=1)
+                else:
+                    lbl = tk.Button(self.grid_container, text=str(val), font=("Helvetica", 16 if n <= 4 else 12, "bold"),
+                                    bg=self.tile_bg, fg=self.tile_text, relief="raised", bd=3, cursor="hand2",
+                                    command=lambda row=r, col=c: self.tile_clicked(row, col))
+                lbl.grid(row=r, column=c, sticky="nsew", padx=3, pady=3)
+                self.tile_buttons[(r, c)] = lbl
+                idx += 1
+            self.board_state.append(row)
+            
+        self.start_time = time.time()
+        self.timer_running = True
+        self.update_timer()
+
+    def update_timer(self):
+        if self.timer_running:
+            self.elapsed_time = int(time.time() - self.start_time)
+            mins, secs = divmod(self.elapsed_time, 60)
+            self.timer_label.config(text=f"Time: {mins:02d}:{secs:02d}")
+            self.root.after(1000, self.update_timer)
+
+    def tile_clicked(self, r, c):
+        if not self.timer_running: return
+        br, bc = self.blank_pos
+        if (abs(r - br) == 1 and c == bc) or (abs(c - bc) == 1 and r == br):
+            self.swap_tiles(r, c, br, bc)
+            self.moves += 1
+            self.moves_label.config(text=f"Moves: {self.moves}")
+            self.check_win()
+
+    def move_by_key(self, direction):
+        if not self.timer_running: return
+        br, bc = self.blank_pos
+        target_r, target_c = br, bc
+        if direction == "Up" and br < self.grid_size - 1: target_r = br + 1
+        elif direction == "Down" and br > 0: target_r = br - 1
+        elif direction == "Left" and bc < self.grid_size - 1: target_c = bc + 1
+        elif direction == "Right" and bc > 0: target_c = bc - 1
+            
+        if (target_r, target_c) != (br, bc):
+            self.swap_tiles(target_r, target_c, br, bc)
+            self.moves += 1
+            self.moves_label.config(text=f"Moves: {self.moves}")
+            self.check_win()
+
+    def swap_tiles(self, r1, c1, r2, c2):
+        val = self.board_state[r1][c1]
+        self.board_state[r2][c2], self.board_state[r1][c1] = val, 0
+        self.blank_pos = (r1, c1)
+
+        btn = self.tile_buttons[(r1, c1)]
+        blank_lbl = self.tile_buttons[(r2, c2)]
+
+        btn.config(command=lambda row=r2, col=c2: self.tile_clicked(row, col))
+        btn.grid(row=r2, column=c2, sticky="nsew", padx=3, pady=3)
+        blank_lbl.grid(row=r1, column=c1, sticky="nsew", padx=3, pady=3)
+
+        self.tile_buttons[(r2, c2)], self.tile_buttons[(r1, c1)] = btn, blank_lbl
+
+    def check_win(self):
+        n = self.grid_size
+        expected = 1
+        for r in range(n):
+            for c in range(n):
+                if r == n - 1 and c == n - 1:
+                    if self.board_state[r][c] != 0: return
+                else:
+                    if self.board_state[r][c] != expected: return
+                    expected += 1
+                    
+        self.timer_running = False
+        mins, secs = divmod(self.elapsed_time, 60)
+        messagebox.showinfo("Congratulations! 🎉", f"You solved the {n}x{n} puzzle!\n\nMoves: {self.moves}\nTime: {mins:02d}:{secs:02d}")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = SlidingPuzzleGame(root)
+    root.mainloop()
